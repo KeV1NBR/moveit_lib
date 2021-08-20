@@ -1,14 +1,19 @@
 #include "arm.h"
 
+#include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
 #include <moveit_msgs/AttachedCollisionObject.h>
 #include <moveit_msgs/CollisionObject.h>
 #include <moveit_msgs/DisplayRobotState.h>
 #include <moveit_msgs/DisplayTrajectory.h>
+#include <tf/tf.h>
 
-#include "moveit/move_group_interface/move_group_interface.h"
+#include "tf2/convert.h"
 
 using namespace std;
+
+vector<double> Euler2Quat(double rx, double ry, double rz);
+vector<double> Quat2Euler(double rx, double ry, double rz, double rw);
 
 Arm::Arm() : Arm("arm") {}
 
@@ -36,16 +41,26 @@ int Arm::move(std::vector<double> position, int feedRate, MoveType moveType,
 
         if (moveType == MoveType::Relative) {
             goal = arm->getCurrentPose().pose;
+            vector<double> rpy =
+                Quat2Euler(goal.orientation.x, goal.orientation.y,
+                           goal.orientation.z, goal.orientation.w);
+            position[3] += rpy[0];
+            position[4] += rpy[1];
+            position[5] += rpy[2];
         }
+
+        vector<double> quaternion =
+            Euler2Quat(position[3], position[4], position[5]);
+
         goal.position.x += position[0];
         goal.position.y += position[1];
         goal.position.z += position[2];
-        goal.orientation.x += position[3];
-        goal.orientation.y += position[4];
-        goal.orientation.z += position[5];
+        goal.orientation.x = quaternion[0];
+        goal.orientation.y = quaternion[1];
+        goal.orientation.z = quaternion[2];
+        goal.orientation.w = quaternion[3];
 
         arm->setPoseTarget(goal);
-
     } else {
         if (moveType == MoveType::Relative) {
             vector<double> current = arm->getCurrentJointValues();
@@ -87,3 +102,21 @@ void Arm::setAccel(int accel) {
 int Arm::getAccel() { return this->accel; }
 
 string Arm::getArmName() { return arm->getName(); }
+
+vector<double> Euler2Quat(double rx, double ry, double rz) {
+    tf2::Quaternion quaternion;
+    quaternion.setRPY(rx, ry, rz);
+    quaternion = quaternion.normalize();
+
+    return {quaternion.getX(), quaternion.getY(), quaternion.getZ(),
+            quaternion.getW()};
+}
+
+vector<double> Quat2Euler(double rx, double ry, double rz, double rw) {
+    tf::Quaternion quaternion(rx, ry, rz, rw);
+    tf::Matrix3x3 rpy(quaternion);
+    vector<double> result(3, .0);
+    rpy.getRPY(result[0], result[1], result[2]);
+
+    return result;
+}

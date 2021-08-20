@@ -1,5 +1,4 @@
 #include <moveit/move_group_interface/move_group_interface.h>
-#include <ros/ros.h>
 
 #include <iostream>
 #include <vector>
