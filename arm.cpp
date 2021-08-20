@@ -8,12 +8,14 @@
 #include <moveit_msgs/DisplayTrajectory.h>
 #include <tf/tf.h>
 
-#include "tf2/convert.h"
+#include <cmath>
 
 using namespace std;
 
-vector<double> Euler2Quat(double rx, double ry, double rz);
-vector<double> Quat2Euler(double rx, double ry, double rz, double rw);
+vector<double> euler2Quat(double rx, double ry, double rz);
+vector<double> quat2Euler(double rx, double ry, double rz, double rw);
+double degree2Rad(double degree);
+double rad2Degree(double rad);
 
 Arm::Arm() : Arm("arm") {}
 
@@ -38,11 +40,14 @@ int Arm::move(std::vector<double> position, int feedRate, MoveType moveType,
 
     if (coordType == CoordType::CARTESIAN) {
         geometry_msgs::Pose goal;
+        position[3] = degree2Rad(position[3]);
+        position[4] = degree2Rad(position[4]);
+        position[5] = degree2Rad(position[5]);
 
         if (moveType == MoveType::Relative) {
             goal = arm->getCurrentPose().pose;
             vector<double> rpy =
-                Quat2Euler(goal.orientation.x, goal.orientation.y,
+                quat2Euler(goal.orientation.x, goal.orientation.y,
                            goal.orientation.z, goal.orientation.w);
             position[3] += rpy[0];
             position[4] += rpy[1];
@@ -50,7 +55,7 @@ int Arm::move(std::vector<double> position, int feedRate, MoveType moveType,
         }
 
         vector<double> quaternion =
-            Euler2Quat(position[3], position[4], position[5]);
+            euler2Quat(position[3], position[4], position[5]);
 
         goal.position.x += position[0];
         goal.position.y += position[1];
@@ -65,6 +70,7 @@ int Arm::move(std::vector<double> position, int feedRate, MoveType moveType,
         if (moveType == MoveType::Relative) {
             vector<double> current = arm->getCurrentJointValues();
             for (unsigned int i = 0; i < position.size(); i++) {
+                position[i] = degree2Rad(position[i]);
                 position[i] += current[i];
             }
         }
@@ -103,6 +109,25 @@ int Arm::getAccel() { return this->accel; }
 
 string Arm::getArmName() { return arm->getName(); }
 
+vector<double> Arm::getJointPosition() {
+    vector<double> result = arm->getCurrentJointValues();
+
+    for (double& j : result) {
+        j = rad2Degree(j);
+    }
+
+    return result;
+}
+
+vector<double> Arm::getCartesianPosition() {
+    geometry_msgs::Pose tmp = arm->getCurrentPose().pose;
+    vector<double> rpy = quat2Euler(tmp.orientation.x, tmp.orientation.y,
+                                    tmp.orientation.z, tmp.orientation.w);
+
+    return {tmp.position.x, tmp.position.y, tmp.position.z,
+            rpy[0],         rpy[1],         rpy[2]};
+}
+
 vector<double> Euler2Quat(double rx, double ry, double rz) {
     tf2::Quaternion quaternion;
     quaternion.setRPY(rx, ry, rz);
@@ -120,3 +145,6 @@ vector<double> Quat2Euler(double rx, double ry, double rz, double rw) {
 
     return result;
 }
+
+double degree2Rad(double degree) { return degree * M_PI / 180; }
+double rad2Degree(double rad) { return rad * 180 / M_PI; };
