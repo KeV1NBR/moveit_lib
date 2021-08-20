@@ -15,8 +15,8 @@ Arm::Arm() : Arm("arm") {}
 Arm::Arm(string name) {
     this->speed = 20;
     this->accel = 10;
-    this->armName = name;
     arm = new moveit::planning_interface::MoveGroupInterface(name);
+    arm->setMaxVelocityScalingFactor((double)speed / 100.);
     arm->setMaxAccelerationScalingFactor((double)accel / 100.);
 }
 
@@ -31,17 +31,59 @@ int Arm::move(std::vector<double> position, int feedRate, MoveType moveType,
     double speedFix = (double)this->speed * feedRate / 10000.;
     arm->setMaxVelocityScalingFactor(speedFix);
 
-    if (moveType == MoveType::Absolute) {
+    if (coordType == CoordType::CARTESIAN) {
+        geometry_msgs::Pose goal;
+
+        if (moveType == MoveType::Relative) {
+            goal = arm->getCurrentPose().pose;
+        }
+        goal.position.x += position[0];
+        goal.position.y += position[1];
+        goal.position.z += position[2];
+        goal.orientation.x += position[3];
+        goal.orientation.y += position[4];
+        goal.orientation.z += position[5];
+
+        arm->setPoseTarget(goal);
+
     } else {
+        if (moveType == MoveType::Relative) {
+            vector<double> current = arm->getCurrentJointValues();
+            for (unsigned int i = 0; i < position.size(); i++) {
+                position[i] += current[i];
+            }
+        }
+        arm->setJointValueTarget(position);
     }
 
-    if (ctrlType == CtrlType::PTP) {
-        err = arm->plan();
-    } else {
-        err = arm->computeCartesianPath();
+    moveit::planning_interface::MoveGroupInterface::Plan plan;
+
+    err = arm->plan(plan);
+    if (err != moveit::planning_interface::MoveItErrorCode::SUCCESS) {
+        return -1;
     }
 
     err = arm->move();
 
-    return moveit::planning_interface::MoveItErrorCode::SUCCESS ? 0 : -1;
+    if (err != moveit::planning_interface::MoveItErrorCode::SUCCESS) {
+        return -1;
+    }
+
+    return 0;
 }
+
+void Arm::setSpeed(int speed) {
+    this->speed = speed;
+    arm->setMaxVelocityScalingFactor((double)speed / 100.);
+}
+
+int Arm::getSpeed() { return this->speed; }
+
+void Arm::setAccel(int accel) {
+    this->accel = accel;
+    arm->setMaxAccelerationScalingFactor((double)accel / 100.);
+}
+
+int Arm::getAccel() { return this->accel; }
+
+string Arm::getArmName() { return arm->getName(); }

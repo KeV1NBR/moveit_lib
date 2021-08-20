@@ -19,8 +19,8 @@ class Arm {
              MoveType moveType = Absolute, CtrlType ctrlType = PTP,
              CoordType coordType = CARTESIAN);
 
-    int setSpeed(int speed);
-    int setAccel(int accel);
+    void setSpeed(int speed);
+    void setAccel(int accel);
 
     int getSpeed();
     int getAccel();
@@ -35,6 +35,4 @@ class Arm {
 
     int speed;
     int accel;
-
-    std::string armName;
 };
