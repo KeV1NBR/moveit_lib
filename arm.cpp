@@ -67,10 +67,13 @@ int Arm::move(std::vector<double> position, int feedRate, MoveType moveType,
 
         arm->setPoseTarget(goal);
     } else {
+        for (double& j : position) {
+            j = degree2Rad(j);
+        }
+
         if (moveType == MoveType::Relative) {
             vector<double> current = arm->getCurrentJointValues();
             for (unsigned int i = 0; i < position.size(); i++) {
-                position[i] = degree2Rad(position[i]);
                 position[i] += current[i];
             }
         }
@@ -124,11 +127,11 @@ vector<double> Arm::getCartesianPosition() {
     vector<double> rpy = quat2Euler(tmp.orientation.x, tmp.orientation.y,
                                     tmp.orientation.z, tmp.orientation.w);
 
-    return {tmp.position.x, tmp.position.y, tmp.position.z,
-            rpy[0],         rpy[1],         rpy[2]};
+    return {tmp.position.x,     tmp.position.y,     tmp.position.z,
+            rad2Degree(rpy[0]), rad2Degree(rpy[1]), rad2Degree(rpy[2])};
 }
 
-vector<double> Euler2Quat(double rx, double ry, double rz) {
+vector<double> euler2Quat(double rx, double ry, double rz) {
     tf2::Quaternion quaternion;
     quaternion.setRPY(rx, ry, rz);
     quaternion = quaternion.normalize();
@@ -137,7 +140,7 @@ vector<double> Euler2Quat(double rx, double ry, double rz) {
             quaternion.getW()};
 }
 
-vector<double> Quat2Euler(double rx, double ry, double rz, double rw) {
+vector<double> quat2Euler(double rx, double ry, double rz, double rw) {
     tf::Quaternion quaternion(rx, ry, rz, rw);
     tf::Matrix3x3 rpy(quaternion);
     vector<double> result(3, .0);
