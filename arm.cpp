@@ -17,7 +17,7 @@ vector<double> quat2Euler(double rx, double ry, double rz, double rw);
 double degree2Rad(double degree);
 double rad2Degree(double rad);
 
-Arm::Arm() : Arm("arm") {}
+Arm::Arm() : Arm("manipulator") {}
 
 Arm::Arm(string name) {
     this->speed = 20;
