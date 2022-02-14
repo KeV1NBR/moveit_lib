@@ -10,6 +10,8 @@
 
 #include <cmath>
 
+#include "ros/node_handle.h"
+
 using namespace std;
 
 vector<double> euler2Quat(double rx, double ry, double rz);
@@ -17,14 +19,18 @@ vector<double> quat2Euler(double rx, double ry, double rz, double rw);
 double degree2Rad(double degree);
 double rad2Degree(double rad);
 
-Arm::Arm() : Arm("manipulator") {}
+Arm::Arm(ros::NodeHandle& nh) : Arm("manipulator", nh) {}
 
-Arm::Arm(string name) {
+Arm::Arm(string name, ros::NodeHandle& nh) {
     this->speed = 20;
     this->accel = 10;
+
     arm = new moveit::planning_interface::MoveGroupInterface(name);
     arm->setMaxVelocityScalingFactor((double)speed / 100.);
     arm->setMaxAccelerationScalingFactor((double)accel / 100.);
+
+    // feedBackSubscriber =
+    //    nh.subscribe<tm_msgs::FeedbackState>("/feedback_states");
 }
 
 Arm::~Arm() { delete arm; }
@@ -40,6 +46,8 @@ int Arm::move(std::vector<double> position, int feedRate, MoveType moveType,
 
     if (coordType == CoordType::CARTESIAN) {
         geometry_msgs::Pose goal;
+        std::vector<geometry_msgs::Pose> waypoints;
+
         position[3] = degree2Rad(position[3]);
         position[4] = degree2Rad(position[4]);
         position[5] = degree2Rad(position[5]);
@@ -65,7 +73,20 @@ int Arm::move(std::vector<double> position, int feedRate, MoveType moveType,
         goal.orientation.z = quaternion[2];
         goal.orientation.w = quaternion[3];
 
-        arm->setPoseTarget(goal);
+        waypoints.push_back(goal);
+
+        moveit_msgs::RobotTrajectory trajectory;
+        const double jump_threshold = 0.0;
+        const double eef_step = 0.01;
+        arm->computeCartesianPath(waypoints, eef_step, jump_threshold,
+                                  trajectory);
+
+        cout << waypoints.size() << endl;
+        err = arm->execute(trajectory);
+        if (err != moveit::planning_interface::MoveItErrorCode::SUCCESS) {
+            return -1;
+        }
+
     } else {
         for (double& j : position) {
             j = degree2Rad(j);
@@ -78,21 +99,21 @@ int Arm::move(std::vector<double> position, int feedRate, MoveType moveType,
             }
         }
         arm->setJointValueTarget(position);
+
+        moveit::planning_interface::MoveGroupInterface::Plan plan;
+
+        err = arm->plan(plan);
+        if (err != moveit::planning_interface::MoveItErrorCode::SUCCESS) {
+            return -1;
+        }
+
+        err = arm->move();
     }
 
-    moveit::planning_interface::MoveGroupInterface::Plan plan;
-
-    err = arm->plan(plan);
     if (err != moveit::planning_interface::MoveItErrorCode::SUCCESS) {
         return -1;
     }
-
-    err = arm->move();
-
-    if (err != moveit::planning_interface::MoveItErrorCode::SUCCESS) {
-        return -1;
-    }
-
+    sleep(5);
     return 0;
 }
 
@@ -130,6 +151,8 @@ vector<double> Arm::getCartesianPosition() {
     return {tmp.position.x,     tmp.position.y,     tmp.position.z,
             rad2Degree(rpy[0]), rad2Degree(rpy[1]), rad2Degree(rpy[2])};
 }
+
+bool Arm::isMoving() {}
 
 vector<double> euler2Quat(double rx, double ry, double rz) {
     tf2::Quaternion quaternion;
