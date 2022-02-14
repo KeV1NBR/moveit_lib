@@ -5,9 +5,6 @@
 #include <iostream>
 #include <vector>
 
-#include "ros/node_handle.h"
-#include "ros/subscriber.h"
-
 class Arm {
    public:
     enum CoordType { CARTESIAN = 0, JOINT = 1 };
@@ -16,8 +13,8 @@ class Arm {
 
     enum MoveType { Absolute = 0, Relative = 1 };
 
-    Arm(ros::NodeHandle& nh);
-    Arm(std::string name, ros::NodeHandle& nh);
+    Arm();
+    Arm(std::string name);
     ~Arm();
     int move(std::vector<double> position, int feedRate = 100,
              MoveType moveType = Absolute, CtrlType ctrlType = PTP,
@@ -39,8 +36,6 @@ class Arm {
 
     bool isMoving();
     void waitForIdle();
-
-    ros::Subscriber feedBackSubscriber;
 
     int speed;
     int accel;

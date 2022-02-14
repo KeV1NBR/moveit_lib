@@ -19,18 +19,15 @@ vector<double> quat2Euler(double rx, double ry, double rz, double rw);
 double degree2Rad(double degree);
 double rad2Degree(double rad);
 
-Arm::Arm(ros::NodeHandle& nh) : Arm("manipulator", nh) {}
+Arm::Arm() : Arm("manipulator") {}
 
-Arm::Arm(string name, ros::NodeHandle& nh) {
+Arm::Arm(string name) {
     this->speed = 20;
     this->accel = 10;
 
     arm = new moveit::planning_interface::MoveGroupInterface(name);
     arm->setMaxVelocityScalingFactor((double)speed / 100.);
     arm->setMaxAccelerationScalingFactor((double)accel / 100.);
-
-    // feedBackSubscriber =
-    //    nh.subscribe<tm_msgs::FeedbackState>("/feedback_states");
 }
 
 Arm::~Arm() { delete arm; }
