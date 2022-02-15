@@ -34,9 +34,6 @@ class Arm {
    private:
     moveit::planning_interface::MoveGroupInterface* arm;
 
-    bool isMoving();
-    void waitForIdle();
-
     int speed;
     int accel;
 };
